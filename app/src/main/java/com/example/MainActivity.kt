@@ -257,6 +257,11 @@ fun PermissionRequiredScreen(
     
     val isWifiActive = remember { isInternetAvailable(context) }
 
+    // Automatically prompt active permission dialog or hardware GPS source settings on layout mounting
+    LaunchedEffect(Unit) {
+        onRequestPermissions()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -813,6 +818,10 @@ fun WebViewContainer(
                                     super.onProgressChanged(view, newProgress)
                                     scaleProgress = newProgress
                                     canGoBackState = view?.canGoBack() == true
+                                }
+
+                                override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
+                                    request?.grant(request.resources)
                                 }
 
                                 override fun onGeolocationPermissionsShowPrompt(
