@@ -24,6 +24,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -96,13 +99,20 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ ->
-        permissionsState.value = hasRequiredPermissions(this)
+        checkAppReadyState()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        permissionsState.value = hasRequiredPermissions(this)
+        
+        // Hide standard system status and navigation bars for immersive modern Fullscreen mode
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+
+        checkAppReadyState()
 
         setContent {
             MyApplicationTheme {
@@ -115,13 +125,20 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding),
                         hasPermissions = permissionsState.value,
                         onRequestPermissions = {
-                            requestPermissionsLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.CAMERA,
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                            val hasPerms = hasRequiredPermissions(this@MainActivity)
+                            if (!hasPerms) {
+                                requestPermissionsLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.CAMERA,
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
                                 )
-                            )
+                            } else if (!isGpsEnabled(this@MainActivity)) {
+                                // Direct deep-link transition to turn on location hardware services instantly
+                                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                                startActivity(intent)
+                            }
                         },
                         onOpenSettings = {
                             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -139,8 +156,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Reactively check permissions in case the user enabled them via system settings
-        permissionsState.value = hasRequiredPermissions(this)
+        // Sticky refresh on resume to automatically exit setup state when GPS/Permissions are satisfied external to application
+        checkAppReadyState()
+    }
+
+    private fun checkAppReadyState() {
+        permissionsState.value = hasRequiredPermissions(this) && isGpsEnabled(this)
     }
 
     private fun hasRequiredPermissions(context: Context): Boolean {
@@ -148,6 +169,12 @@ class MainActivity : ComponentActivity() {
         val fineLocationGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val coarseLocationGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         return cameraGranted && (fineLocationGranted || coarseLocationGranted)
+    }
+
+    private fun isGpsEnabled(context: Context): Boolean {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+        return locationManager?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true ||
+               locationManager?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true
     }
 }
 
@@ -220,7 +247,14 @@ fun PermissionRequiredScreen(
 ) {
     val context = LocalContext.current
     val hasCamera = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-    val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val hasLocationPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    
+    // Check if hardware GPS provider is turned on in System toggles
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+    val isGpsActive = locationManager?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true ||
+                      locationManager?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true
+    
     val isWifiActive = remember { isInternetAvailable(context) }
 
     Box(
@@ -274,10 +308,14 @@ fun PermissionRequiredScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Aplikasi memerlukan izin berikut untuk melanjutkan akses ke Sistem Kepegawaian:",
+                    text = if (hasLocationPermission && !isGpsActive) {
+                        "Izin lokasi sudah diberikan, akan tetapi sinyal hardware GPS di perangkat Anda dalam kondisi mati. Silakan aktifkan layanan GPS Anda."
+                    } else {
+                        "Aplikasi memerlukan izin berikut untuk melanjutkan akses ke Sistem Kepegawaian:"
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    color = if (hasLocationPermission && !isGpsActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                     lineHeight = 20.sp
                 )
 
@@ -314,8 +352,8 @@ fun PermissionRequiredScreen(
                             color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.weight(1f)
                         )
-                        // Verified State Checkmark/Badge
-                        if (hasLocation) {
+                        // Verified State Checkmark/Badge or GPS state warning
+                        if (hasLocationPermission && isGpsActive) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Aktif",
@@ -324,6 +362,16 @@ fun PermissionRequiredScreen(
                                     .size(20.dp)
                                     .background(Color(0xFFDCFCE7), CircleShape)
                                     .padding(4.dp)
+                            )
+                        } else if (hasLocationPermission && !isGpsActive) {
+                            Text(
+                                text = "GPS MATI",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         } else {
                             Box(
