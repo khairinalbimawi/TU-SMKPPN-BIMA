@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Symmetrical Academic Crest (Shield) representing school administration -->
+    <path
+        android:fillColor="#E8F2E8"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:pathData="M 54,20 L 82,33 L 82,67 L 54,88 L 26,67 L 26,33 Z" />
+        
+    <!-- Internal decorative border -->
+    <path
+        android:strokeColor="#81C784"
+        android:strokeWidth="1.5"
+        android:pathData="M 54,24 L 78,35 L 78,65 L 54,84 L 30,65 L 30,35 Z" />
+
+    <!-- Tree of Knowledge / Agricultural Growth (Plant Stem) -->
+    <path
+        android:fillColor="#1B5E20"
+        android:pathData="M 52.5,40 h 3 v 38 h -3 Z" />
+
+    <!-- Left Foliage Branch -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M 54,64 C 42,63 38,52 42,46 C 47,44 52,48 54,56 Z" />
+
+    <!-- Right Foliage Branch -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M 54,54 C 66,53 70,42 66,36 C 61,34 56,38 54,46 Z" />
+
+    <!-- Administrative document drawer/book representing TU (Tata Usaha) -->
+    <path
+        android:fillColor="#FBC02D"
+        android:pathData="M 38,68 h 32 a 2,2 0 0 1 2,2 v 4 a 2,2 0 0 1 -2,2 h -32 a 2,2 0 0 1 -2,-2 v -4 a 2,2 0 0 1 2,-2 Z" />
+        
+    <path
+        android:fillColor="#F57F17"
+        android:pathData="M 42,70 h 24 v 2 h -24 Z" />
+        
+</vector>

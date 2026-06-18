@@ -1,0 +1,8 @@
+{
+  "name": "TU SMKPPN BIMA",
+  "description": "Sistem Informasi Tata Usaha Kepegawaian SMK Negeri Pembangunan Pertanian Bima (SMKPPN BIMA). Memerlukan izin lokasi dan kamera guna absen, pengunggahan berkas, serta koneksi internet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
